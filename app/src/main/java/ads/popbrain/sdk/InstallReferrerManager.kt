@@ -17,18 +17,16 @@ object InstallReferrerManager {
         client.startConnection(object : InstallReferrerStateListener {
 
             override fun onInstallReferrerSetupFinished(responseCode: Int) {
-
-                if (responseCode ==
-                    InstallReferrerClient.InstallReferrerResponse.OK
-                ) {
-
-                    val response = client.installReferrer
-                    val referrer = response.installReferrer
-
-                    val result = ReferrerParser.parse(referrer)
-
-                    callback(result)
-
+                try {
+                    if (responseCode == InstallReferrerClient.InstallReferrerResponse.OK) {
+                        val response = client.installReferrer
+                        callback(ReferrerParser.parse(response.installReferrer))
+                    } else {
+                        callback(AttributionResult(isOrganic = true))
+                    }
+                } catch (e: Exception) {
+                    callback(AttributionResult(isOrganic = true))
+                } finally {
                     client.endConnection()
                 }
             }

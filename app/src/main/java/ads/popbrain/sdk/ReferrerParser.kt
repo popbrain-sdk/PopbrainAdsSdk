@@ -17,14 +17,10 @@ object ReferrerParser {
             }
             .toMap()
 
-        val isAdInstall =
-            params.containsKey("utm_source") ||
-                    params.containsKey("utm_medium") ||
-                    params.containsKey("gclid") ||
-                    params.containsKey("fbclid")
+        val isPopbrain = params["utm_source"]?.contains("popbrain", ignoreCase = true) == true
 
         return AttributionResult(
-            isOrganic = !isAdInstall,
+            isOrganic = !isPopbrain && !params.containsKey("gclid"),
             referrer = referrer,
             campaign = params["utm_campaign"]
         )
