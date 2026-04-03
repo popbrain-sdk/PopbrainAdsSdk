@@ -4,6 +4,7 @@ import android.content.Context
 import com.android.installreferrer.api.InstallReferrerClient
 import com.android.installreferrer.api.InstallReferrerStateListener
 import ads.popbrain.sdk.model.AttributionResult
+import android.util.Log
 
 object InstallReferrerManager {
 
@@ -20,6 +21,7 @@ object InstallReferrerManager {
                 try {
                     if (responseCode == InstallReferrerClient.InstallReferrerResponse.OK) {
                         val response = client.installReferrer
+                        Log.d("PopbrainSDK", "Fetch Referrer: ${response.installReferrer}")
                         callback(ReferrerParser.parse(response.installReferrer))
                     } else {
                         callback(AttributionResult(isOrganic = true))
