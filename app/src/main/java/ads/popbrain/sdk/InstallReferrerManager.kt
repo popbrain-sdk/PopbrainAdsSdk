@@ -21,7 +21,6 @@ object InstallReferrerManager {
                 try {
                     if (responseCode == InstallReferrerClient.InstallReferrerResponse.OK) {
                         val response = client.installReferrer
-                        Log.d("PopbrainSDK", "Fetch Referrer: ${response.installReferrer}")
                         callback(ReferrerParser.parse(response.installReferrer))
                     } else {
                         callback(AttributionResult(isOrganic = true))
