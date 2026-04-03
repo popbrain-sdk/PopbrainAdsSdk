@@ -1,5 +1,6 @@
 package ads.popbrain.sdk
 
+import android.util.Log
 import okhttp3.*
 import java.io.IOException
 
@@ -7,6 +8,7 @@ object ConversionApi {
     private val client = OkHttpClient()
     fun reportInstall(referrer: String) {
         val url = "https://devserver.popbrain.ai/api/v1/analytics/install/add?$referrer"
+        Log.d("PopbrainSDK", "Final Url: $url")
         val request = Request.Builder()
             .url(url)
             .get()
