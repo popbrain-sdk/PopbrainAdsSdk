@@ -8,6 +8,7 @@ object ConversionTracker {
     fun track(result: AttributionResult) {
         if (!result.isOrganic) {
             val clickId = extractClickId(result.referrer!!)
+            Log.d("PopbrainSDK", "referrer: ${result.referrer}")
             if (clickId.isNotEmpty()) {
                 ConversionApi.reportInstall(clickId, result.referrer)
             }
