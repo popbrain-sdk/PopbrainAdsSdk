@@ -6,7 +6,7 @@ import android.util.Log
 object ReferrerParser {
 
     fun parse(referrer: String?): AttributionResult {
-        Log.d("PopbrainSDK", "Raw Referrer: $referrer")
+//        Log.d("PopbrainSDK", "Raw Referrer: $referrer")
         if (referrer.isNullOrEmpty() || referrer.contains("organic", ignoreCase = true)) {
             return AttributionResult(isOrganic = true)
         }

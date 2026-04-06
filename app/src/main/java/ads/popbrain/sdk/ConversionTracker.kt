@@ -7,7 +7,7 @@ object ConversionTracker {
 
     fun track(result: AttributionResult) {
         if (!result.isOrganic) {
-            Log.d("PopbrainSDK", "Conversion detected: ${result.referrer}")
+//            Log.d("PopbrainSDK", "Conversion detected: ${result.referrer}")
             ConversionApi.reportInstall(result.referrer!!)
         } else {
             Log.d("PopbrainSDK", "Organic install")

@@ -7,8 +7,8 @@ import java.io.IOException
 object ConversionApi {
     private val client = OkHttpClient()
     fun reportInstall(referrer: String) {
-        val url = "https://devserver.popbrain.ai/api/v1/analytics/install/add?$referrer"
-        Log.d("PopbrainSDK", "Final Url: $url")
+        val url = "https://server.popbrain.ai/api/v1/analytics/install/add?$referrer"
+//        Log.d("PopbrainSDK", "Final Url: $url")
         val request = Request.Builder()
             .url(url)
             .get()
@@ -17,6 +17,7 @@ object ConversionApi {
             override fun onFailure(call: Call, e: IOException) {
                 println("PopbrainSDK Error: API Hit Failed - ${e.message}")
             }
+
             override fun onResponse(call: Call, response: Response) {
                 if (response.isSuccessful) {
                     println("PopbrainSDK Success: Data saved in DB. Code: ${response.code}")
