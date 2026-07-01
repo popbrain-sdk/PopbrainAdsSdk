@@ -1,4 +1,4 @@
-package ads.popbrain.sdk.model
+package ads.popbrain.sdk
 
 data class AttributionResult(
     val isOrganic: Boolean,

@@ -3,7 +3,7 @@ package ads.popbrain.sdk
 import android.content.Context
 import com.android.installreferrer.api.InstallReferrerClient
 import com.android.installreferrer.api.InstallReferrerStateListener
-import ads.popbrain.sdk.model.AttributionResult
+import ads.popbrain.sdk.AttributionResult
 import android.util.Log
 
 object InstallReferrerManager {

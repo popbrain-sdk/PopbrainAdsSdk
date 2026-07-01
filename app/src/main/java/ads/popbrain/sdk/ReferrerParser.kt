@@ -1,6 +1,6 @@
 package ads.popbrain.sdk
 
-import ads.popbrain.sdk.model.AttributionResult
+import ads.popbrain.sdk.AttributionResult
 import android.util.Log
 
 object ReferrerParser {

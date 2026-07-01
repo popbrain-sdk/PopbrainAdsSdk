@@ -1,7 +1,7 @@
 package ads.popbrain.sdk
 
 import android.util.Log
-import ads.popbrain.sdk.model.AttributionResult
+import ads.popbrain.sdk.AttributionResult
 
 object ConversionTracker {
 
