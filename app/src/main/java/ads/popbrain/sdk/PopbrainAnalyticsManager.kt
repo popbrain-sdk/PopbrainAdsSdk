@@ -36,7 +36,7 @@ object PopbrainAnalyticsManager {
         }
 
         val request = Request.Builder()
-            .url("https://server.popbrain.ai/api/v1/pixel/s2s")
+            .url("https://devserver.popbrain.ai/api/v1/pixel/s2s")
             .post(json.toString().toRequestBody(JSON))
             .build()
         client.newCall(request).enqueue(object : Callback {
