@@ -28,4 +28,4 @@ Ensure you have the necessary internet permissions in your AndroidManifest.xml:
 Add dependency:
 
 ```gradle
-implementation("com.github.popbrain-sdk:PopbrainAdsSdk:LatestVersion")
+implementation("com.github.popbrain-sdk:PopbrainAdsSdk:1.1.1")
