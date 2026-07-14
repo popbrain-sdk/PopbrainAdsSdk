@@ -7,8 +7,8 @@ import java.io.IOException
 object ConversionApi {
     private val client = OkHttpClient()
     fun reportInstall(referrer: String) {
-        val url = "https://server.popbrain.ai/api/v1/analytics/install/add?$referrer"
-//        Log.d("PopbrainSDK", "Final Url: $url")
+        Log.d("PopbrainSDK", "Referrer Data: $referrer")
+        val url = "https://devserver.popbrain.ai/api/v1/analytics/install/add?$referrer"
         val request = Request.Builder()
             .url(url)
             .get()

@@ -16,17 +16,16 @@ object ReferrerParser {
             if (pair.size == 2) pair[0] to pair[1] else null
         }.toMap()
 
-        val hasPopbrainSource =
-            params["utm_source"]?.contains("popbrain", ignoreCase = true) == true
-        val hasClickId = params.containsKey("clickId") || params.containsKey("click_Id")
-        val hasGclid = params.containsKey("gclid")
+        val extractedClickId = params["clickId"] ?: params["utm_clickId"]
 
-        val isNotOrganic = hasPopbrainSource || hasClickId || hasGclid
+        val hasPopbrainSource = params["utm_source"]?.contains("popbrain", ignoreCase = true) == true
+        val isNotOrganic = hasPopbrainSource || !extractedClickId.isNullOrEmpty() || params.containsKey("gclid")
 
         return AttributionResult(
             isOrganic = !isNotOrganic,
             referrer = referrer,
-            campaign = params["utm_campaign"]
+            campaign = params["utm_campaign"],
+            clickId = extractedClickId
         )
     }
 }
