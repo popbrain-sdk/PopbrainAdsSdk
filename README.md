@@ -9,7 +9,7 @@ in-app events you send to that same click.
 ## Installation
 
 ```gradle
-implementation("com.github.popbrain-sdk:PopbrainAdsSdk:1.1.2")
+implementation("com.github.popbrain-sdk:PopbrainAdsSdk:1.2.0")
 ```
 
 ## 🚀 Quick Start
