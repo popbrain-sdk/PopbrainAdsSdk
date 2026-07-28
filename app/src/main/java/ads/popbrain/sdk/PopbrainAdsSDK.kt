@@ -1,15 +1,12 @@
 package ads.popbrain.sdk
 
 import android.content.Context
-import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 object PopbrainAdsSDK {
 
     private val initialized = AtomicBoolean(false)
-    private val executor = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "popbrain-sdk").apply { isDaemon = true }
-    }
+    private val executor get() = PopbrainApiClient.executor
 
     /**
      * Invoked automatically by [SdkInitProvider] on app start — integrators do not need to

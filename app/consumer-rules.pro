@@ -13,3 +13,5 @@
 
 # Play Install Referrer AIDL surface.
 -keep class com.android.installreferrer.** { *; }
+
+# No HTTP library rules needed: the SDK uses the platform's HttpURLConnection and org.json.

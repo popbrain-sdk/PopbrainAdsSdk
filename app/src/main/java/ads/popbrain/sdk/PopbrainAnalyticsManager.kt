@@ -1,20 +1,16 @@
 package ads.popbrain.sdk
 
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
 import org.json.JSONObject
-import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 object PopbrainAnalyticsManager {
 
-    private const val S2S_URL = "https://server.popbrain.ai/api/v1/pixel/s2s"
     private const val MAX_PENDING_EVENTS = 100
+    private const val S2S_PATH = "api/v1/pixel/s2s"
 
-    private val JSON = "application/json; charset=utf-8".toMediaType()
+    /** Retries for a transient event failure, with backoff. Permanent failures never retry. */
+    private const val MAX_EVENT_RETRIES = 2
+    private val RETRY_DELAYS_SECONDS = longArrayOf(2, 8)
 
     /** Reserved payload keys that caller-supplied params must never overwrite. */
     private val RESERVED_KEYS = setOf("clickId", "advertiserId", "eventName")
@@ -64,7 +60,7 @@ object PopbrainAnalyticsManager {
             queue(name, extraParams)
             return
         }
-        dispatch(name, extraParams, clickId, PopbrainStorage.advertiserId)
+        dispatch(name, extraParams, clickId, PopbrainStorage.advertiserId, attempt = 0)
     }
 
     private fun queue(eventName: String, extraParams: Map<String, Any>?) {
@@ -90,49 +86,63 @@ object PopbrainAnalyticsManager {
         }
 
         PopbrainLogger.d("Flushing ${drained.size} queued event(s)")
-        drained.forEach { (name, params) -> dispatch(name, params, clickId, advertiserId) }
+        drained.forEach { (name, params) -> dispatch(name, params, clickId, advertiserId, 0) }
     }
 
     private fun dispatch(
         eventName: String,
         extraParams: Map<String, Any>?,
         clickId: String,
-        advertiserId: String?
+        advertiserId: String?,
+        attempt: Int
     ) {
-        val json = JSONObject().apply {
-            // Caller params go in first, then the reserved identity fields overwrite them, so a
-            // custom "clickId" key can never change which click an event is attributed to.
-            extraParams?.forEach { (key, value) ->
-                if (key in RESERVED_KEYS) {
-                    PopbrainLogger.e("Ignoring reserved param '$key' in event '$eventName'")
-                } else {
-                    put(key, value)
-                }
-            }
-            put("clickId", clickId)
-            advertiserId?.let { put("advertiserId", it) }
-            put("eventName", eventName)
+        val body = try {
+            buildBody(eventName, extraParams, clickId, advertiserId)
+        } catch (e: Exception) {
+            PopbrainLogger.e("Could not build event '$eventName'", e)
+            return
         }
 
-        val request = Request.Builder()
-            .url(S2S_URL)
-            .post(json.toString().toRequestBody(JSON))
-            .build()
-
-        PopbrainHttp.client.newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                PopbrainLogger.e("S2S event '$eventName' failed", e)
+        PopbrainApiClient.postJson(S2S_PATH, body, "Event '$eventName'") { result ->
+            if (result is ApiResult.Retryable && attempt < MAX_EVENT_RETRIES) {
+                val delay = RETRY_DELAYS_SECONDS[attempt]
+                PopbrainLogger.d("Retrying event '$eventName' in ${delay}s")
+                PopbrainApiClient.schedule(delay, TimeUnit.SECONDS) {
+                    dispatch(eventName, extraParams, clickId, advertiserId, attempt + 1)
+                }
+            } else if (result is ApiResult.Retryable) {
+                PopbrainLogger.e("Event '$eventName' dropped after ${attempt + 1} attempts")
             }
+        }
+    }
 
-            override fun onResponse(call: Call, response: Response) {
-                response.use {
-                    if (it.isSuccessful) {
-                        PopbrainLogger.d("Event '$eventName' sent. Code: ${it.code}")
-                    } else {
-                        PopbrainLogger.e("Event '$eventName' rejected with ${it.code}")
-                    }
+    private fun buildBody(
+        eventName: String,
+        extraParams: Map<String, Any>?,
+        clickId: String,
+        advertiserId: String?
+    ): String {
+        val json = JSONObject()
+
+        // Caller params go in first, then the reserved identity fields overwrite them, so a
+        // custom "clickId" key can never change which click an event is attributed to.
+        extraParams?.forEach { (key, value) ->
+            when {
+                key in RESERVED_KEYS ->
+                    PopbrainLogger.e("Ignoring reserved param '$key' in event '$eventName'")
+                key.isBlank() ->
+                    PopbrainLogger.e("Ignoring blank param key in event '$eventName'")
+                // org.json rejects NaN/Infinity — skip the one param, keep the event.
+                else -> runCatching { json.put(key, value) }.onFailure {
+                    PopbrainLogger.e("Ignoring unserialisable param '$key' in event '$eventName'")
                 }
             }
-        })
+        }
+
+        json.put("clickId", clickId)
+        advertiserId?.let { json.put("advertiserId", it) }
+        json.put("eventName", eventName)
+
+        return json.toString()
     }
 }

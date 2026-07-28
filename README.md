@@ -70,6 +70,48 @@ need to add these yourself:
 <uses-permission android:name="com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE" />
 ```
 
+## 🔧 For maintainers — switching environment
+
+The backend is selected by a single constant in `PopbrainEnv.kt`. It is baked into the
+published AAR, so set it to match the release target before pushing:
+
+| Target | `BASE_URL` | Remote |
+|---|---|---|
+| Test | `https://devserver.popbrain.ai/` | `PopbrainTestSdk` |
+| Production | `https://server.popbrain.ai/` | `origin` |
+
+## 📦 Footprint
+
+| Dependency | Size | Why |
+|---|---|---|
+| `kotlin-stdlib` | 1.7 MB | Already present in any Kotlin app |
+| `annotations` | 17 KB | Transitive of kotlin-stdlib |
+| `installreferrer` | 8 KB | Play referrer — the only real dependency |
+
+**Total 1.69 MB across 3 artifacts**, plus a 42 KB AAR. Discounting `kotlin-stdlib`, which
+every Kotlin app already ships, the SDK adds roughly **65 KB** to an integrator's app.
+
+Deliberately absent:
+
+- **No `appcompat` / `material` / `androidx.core`** — this is a headless SDK with no UI. They
+  were pulling in ~9 MB of transitive dependencies (lifecycle, coroutines, fragment,
+  recyclerview, constraintlayout) that no code path touched.
+- **No OkHttp / Retrofit / Gson** — the SDK makes two API calls. It uses the platform's
+  `HttpURLConnection` (itself backed by OkHttp inside Android, so nothing is lost) and builds
+  JSON with the framework's `org.json`.
+- **No resources** — the template `themes.xml` / `colors.xml` / `strings.xml` were merging a
+  `Theme.PopbrainAdsSdk` and an `app_name` string into every consumer app.
+
+## Error handling
+
+API failures are classified so retries only happen when they can help:
+
+| Outcome | Examples | Behaviour |
+|---|---|---|
+| Success | 2xx | Install marked reported |
+| Retryable | offline, timeout, 5xx, 408, 429 | Install retried next launch (max 10); events retried twice with backoff |
+| Permanent | 4xx | Retry loop stopped, logged as an error |
+
 ## Attribution flow
 
 ```

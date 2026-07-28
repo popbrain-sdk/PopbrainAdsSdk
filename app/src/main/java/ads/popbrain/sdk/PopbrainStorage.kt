@@ -21,6 +21,7 @@ internal object PopbrainStorage {
     private const val KEY_REFERRER = "referrer"
     private const val KEY_REFERRER_PROCESSED = "referrer_processed"
     private const val KEY_INSTALL_REPORTED = "install_reported"
+    private const val KEY_INSTALL_ATTEMPTS = "install_attempts"
 
     @Volatile
     private var prefs: SharedPreferences? = null
@@ -58,6 +59,13 @@ internal object PopbrainStorage {
         get() = prefs?.getBoolean(KEY_INSTALL_REPORTED, false) ?: false
         set(value) {
             prefs?.edit()?.putBoolean(KEY_INSTALL_REPORTED, value)?.apply()
+        }
+
+    /** Bounds the cross-launch retry loop for an install that keeps failing. */
+    var installAttempts: Int
+        get() = prefs?.getInt(KEY_INSTALL_ATTEMPTS, 0) ?: 0
+        set(value) {
+            prefs?.edit()?.putInt(KEY_INSTALL_ATTEMPTS, value)?.apply()
         }
 
     private fun put(key: String, value: String?) {

@@ -3,6 +3,12 @@ package ads.popbrain.sdk
 internal object ConversionTracker {
 
     /**
+     * Give up after this many failed launches. Without a bound, an install the server keeps
+     * rejecting would hit the API on every app start for the lifetime of the app.
+     */
+    private const val MAX_INSTALL_ATTEMPTS = 10
+
+    /**
      * Persists the attribution, wires the clickId into analytics, and reports the install
      * exactly once.
      */
@@ -35,12 +41,34 @@ internal object ConversionTracker {
             return
         }
 
+        val attempts = PopbrainStorage.installAttempts
+        if (attempts >= MAX_INSTALL_ATTEMPTS) {
+            PopbrainLogger.e("Install report abandoned after $attempts attempts")
+            return
+        }
+
         val stored = ReferrerParser.parse(PopbrainStorage.referrer)
         if (stored.isOrganic) return
 
-        PopbrainLogger.d("Reporting install for clickId=${stored.clickId}")
-        ConversionApi.reportInstall(stored.params, stored.clickId) {
-            PopbrainStorage.installReported = true
+        PopbrainStorage.installAttempts = attempts + 1
+        PopbrainLogger.d("Reporting install (attempt ${attempts + 1}) for clickId=${stored.clickId}")
+
+        ConversionApi.reportInstall(stored.params, stored.clickId) { result ->
+            when (result) {
+                is ApiResult.Success -> {
+                    PopbrainStorage.installReported = true
+                }
+                is ApiResult.Permanent -> {
+                    // Retrying sends the identical bad request, so stop rather than burn a
+                    // network call on every launch. Logged loudly — this needs a fix.
+                    PopbrainStorage.installAttempts = MAX_INSTALL_ATTEMPTS
+                    PopbrainLogger.e("Install rejected permanently: ${result.reason}")
+                }
+                is ApiResult.Retryable -> {
+                    // Attempt counter already incremented; next launch tries again.
+                    PopbrainLogger.d("Install will retry next launch: ${result.reason}")
+                }
+            }
         }
     }
 }

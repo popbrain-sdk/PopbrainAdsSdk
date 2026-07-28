@@ -58,9 +58,7 @@ object ReferrerParser {
         return params
     }
 
-    private fun decode(value: String): String = try {
-        URLDecoder.decode(value, "UTF-8")
-    } catch (e: Exception) {
-        value
-    }
+    /** Falls back to the raw text if the segment is not valid percent-encoding. */
+    private fun decode(value: String): String =
+        runCatching { URLDecoder.decode(value, "UTF-8") }.getOrDefault(value)
 }
