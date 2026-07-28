@@ -10,6 +10,10 @@ package ads.popbrain.sdk
  * │  Production   → https://server.popbrain.ai/                              │
  * └──────────────────────────────────────────────────────────────────────────┘
  *
+ * Endpoints reached from this base:
+ *  - `api/v1/analytics/install/add?clickId={clickId}` — install conversion
+ *  - `api/v1/pixel/s2s`                               — in-app events (JSON POST)
+ *
  * The URL is baked into the published AAR, so it must match the target before the release
  * is cut. Keeping it as a single constant means the switch is one line and greppable.
  */

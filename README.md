@@ -80,6 +80,38 @@ published AAR, so set it to match the release target before pushing:
 | Test | `https://devserver.popbrain.ai/` | `PopbrainTestSdk` |
 | Production | `https://server.popbrain.ai/` | `origin` |
 
+### Endpoints
+
+| Purpose | Method | Path |
+|---|---|---|
+| Install conversion | `GET` | `api/v1/analytics/install/add?clickId={clickId}` |
+| In-app event | `POST` | `api/v1/pixel/s2s` |
+
+Both calls forward **every field the SDK has**, and the server decides what to keep.
+
+The install call sends `clickId` plus the rest of the parsed referrer, each key and value
+percent-encoded:
+
+```
+api/v1/analytics/install/add?clickId=abc123&utm_source=popbrain&utm_campaign=summer
+```
+
+The event call sends `clickId`, `eventName`, `advertiserId` when known, and any params the
+integrator attached:
+
+```json
+{
+  "clickId": "abc123",
+  "advertiserId": "adv_99",
+  "eventName": "purchase",
+  "value": 499,
+  "currency": "INR"
+}
+```
+
+`clickId`, `advertiserId` and `eventName` are reserved — a custom param using one of those
+keys is ignored so an event cannot be re-attributed to a different click.
+
 ## 📦 Footprint
 
 | Dependency | Size | Why |

@@ -50,10 +50,12 @@ internal object ConversionTracker {
         val stored = ReferrerParser.parse(PopbrainStorage.referrer)
         if (stored.isOrganic) return
 
-        PopbrainStorage.installAttempts = attempts + 1
-        PopbrainLogger.d("Reporting install (attempt ${attempts + 1}) for clickId=${stored.clickId}")
+        val clickId = (stored.clickId ?: PopbrainStorage.clickId)?.takeIf(String::isNotEmpty)
 
-        ConversionApi.reportInstall(stored.params, stored.clickId) { result ->
+        PopbrainStorage.installAttempts = attempts + 1
+        PopbrainLogger.d("Reporting install (attempt ${attempts + 1}) for clickId=$clickId")
+
+        ConversionApi.reportInstall(stored.params, clickId) { result ->
             when (result) {
                 is ApiResult.Success -> {
                     PopbrainStorage.installReported = true
