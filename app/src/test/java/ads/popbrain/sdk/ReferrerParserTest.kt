@@ -126,6 +126,41 @@ class ReferrerParserTest {
     }
 
     @Test
+    fun `referrer that is only the click id is attributed`() {
+        val result = ReferrerParser.parse(c1)
+        assertFalse(result.isOrganic)
+        assertEquals(c1, result.clickId)
+        assertEquals(c1, result.referrer)
+        assertTrue(result.params.isEmpty())
+    }
+
+    @Test
+    fun `referrer that is only the click id tolerates surrounding spaces`() {
+        assertEquals(c1, ReferrerParser.parse(" $c1 ").clickId)
+    }
+
+    @Test
+    fun `referrer that is only some other value stays organic`() {
+        assertTrue(ReferrerParser.parse("abc123").isOrganic)
+        assertTrue(ReferrerParser.parse("${c1}0").isOrganic)
+    }
+
+    @Test
+    fun `fully encoded referrer is decoded once`() {
+        val result = ReferrerParser.parse("utm_source%3Dpopbrain%26clickId%3D$c1%26utm_campaign%3Dspring%2526summer")
+        assertFalse(result.isOrganic)
+        assertEquals(c1, result.clickId)
+        assertEquals("popbrain", result.params["utm_source"])
+        assertEquals("spring&summer", result.campaign)
+    }
+
+    @Test
+    fun `stored raw click id referrer is reported with only the click id`() {
+        val stored = ReferrerParser.parse(c1)
+        assertEquals(mapOf("clickId" to c1), ConversionApi.buildQuery(stored.params, stored.clickId!!))
+    }
+
+    @Test
     fun `referrer built by the popbrain server is attributed`() {
         val result = ReferrerParser.parse("utm_source=popbrain&utm_clickId=$c1&clickId=$c1")
         assertFalse(result.isOrganic)

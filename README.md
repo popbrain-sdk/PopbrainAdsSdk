@@ -8,9 +8,65 @@ in-app events you send to that same click.
 
 ## Installation
 
-```gradle
-implementation("com.github.popbrain-sdk:PopbrainAdsSdk:1.2.1")
+Add JitPack to `settings.gradle.kts`:
+
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven("https://jitpack.io")
+    }
+}
 ```
+
+Then the dependency:
+
+```gradle
+implementation("com.github.popbrain-sdk:PopbrainAdsSdk:1.2.2")
+```
+
+Requirements: `minSdk` 21 or higher, and the app must be installed **from Google Play** — an
+APK sideload or another store never carries a Play install referrer.
+
+## 🔗 Play Store URL for your Popbrain campaign
+
+The SDK can only attribute an install if the Popbrain `clickId` reaches the app. Google Play
+passes **only the `referrer` parameter** of the store link to the app, so the campaign's target
+URL must contain a `referrer` parameter. Popbrain puts the `clickId` into it on every click.
+
+✅ **Use this target URL** (replace the package name):
+
+```
+https://play.google.com/store/apps/details?id=com.your.app&referrer=utm_source%3Dpopbrain
+```
+
+After a click, Popbrain turns it into
+`...&referrer=utm_source%3Dpopbrain%26utm_clickId%3D<clickId>%26clickId%3D<clickId>` and the app
+receives `utm_source=popbrain&utm_clickId=<clickId>&clickId=<clickId>`.
+
+| Target URL | What the app receives | Install counted |
+|---|---|---|
+| `https://play.google.com/store/apps/details?id=com.your.app&referrer=utm_source%3Dpopbrain` | `utm_source=popbrain&utm_clickId=…&clickId=…` | ✅ Yes (recommended) |
+| `https://play.google.com/store/apps/details?id=com.your.app&referrer=clickId%3D{CLICK_ID}` | `clickId=…&utm_clickId=…` | ✅ Yes |
+| `https://play.google.com/store/apps/details?id=com.your.app&referrer={CLICK_ID}` | the bare `clickId` | ✅ Yes (from 1.2.2) |
+| `https://play.google.com/store/apps/details?id=com.your.app` | nothing from Popbrain — Play reports `utm_source=google-play&utm_medium=organic` | ❌ **No**, every install looks organic |
+| `market://details?id=…`, a short link or your own redirect page | depends — the `referrer` is usually lost | ❌ Not supported |
+
+Rules for the `referrer` value:
+
+- Inside `referrer`, `=` must be written as `%3D` and `&` as `%26`, otherwise Play cuts the
+  value at the first `&` and the rest becomes a separate (ignored) parameter.
+- You may add your own keys, e.g. `referrer=utm_source%3Dpopbrain%26utm_campaign%3Dsummer` —
+  they are forwarded with the install. Keep it short: the install call carries at most 20
+  fields, keys up to 60 and values up to 400 characters.
+- Do not put your own `clickId` / `click_id` / `utm_clickId` in the URL — Popbrain sets them.
+
+**How to test before going live:** upload the build to a Play Console internal testing track,
+open the target URL from a Popbrain test click on a device that does not have the app, install
+from Play, then launch the app with `PopbrainAdsSDK.setLoggingEnabled(true)` and look for
+`Reporting install (attempt 1) for clickId=…` in Logcat (tag `PopbrainSDK`). The Play referrer
+stays available for 90 days after install.
 
 ## 🚀 Quick Start
 

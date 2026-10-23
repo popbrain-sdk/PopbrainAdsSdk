@@ -12,7 +12,12 @@ object ReferrerParser {
             return AttributionResult(isOrganic = true, referrer = referrer)
         }
 
-        val params = splitParams(referrer)
+        val content = unwrap(referrer)
+        if (PopbrainServerRules.isValidClickId(content)) {
+            return AttributionResult(isOrganic = false, referrer = referrer, clickId = content)
+        }
+
+        val params = splitParams(content)
 
         val extractedClickId = CLICK_ID_KEYS.firstNotNullOfOrNull {
             params[it]?.trim()?.takeIf(PopbrainServerRules::isValidClickId)
@@ -28,6 +33,12 @@ object ReferrerParser {
             advertiserId = extractedAdvertiserId,
             params = params
         )
+    }
+
+    private fun unwrap(referrer: String): String {
+        val trimmed = referrer.trim()
+        if ('=' in trimmed || '%' !in trimmed) return trimmed
+        return decode(trimmed).trim()
     }
 
     private fun splitParams(referrer: String): Map<String, String> {
