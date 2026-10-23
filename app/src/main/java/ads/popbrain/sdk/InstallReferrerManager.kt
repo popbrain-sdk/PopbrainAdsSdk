@@ -7,12 +7,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 internal object InstallReferrerManager {
 
-    /**
-     * @param onResult parsed referrer. Fires at most once.
-     * @param onUnavailable the referrer could not be read *this time* (service unavailable,
-     *        Play Store missing, connection dropped). Distinct from an organic install — the
-     *        caller must retry later instead of permanently classifying the user as organic.
-     */
     fun fetchReferrer(
         context: Context,
         onResult: (AttributionResult) -> Unit,
@@ -25,8 +19,6 @@ internal object InstallReferrerManager {
             return
         }
 
-        // The Play service can invoke the listener more than once (setup finished, then a
-        // disconnect). Everything downstream must run exactly once.
         val delivered = AtomicBoolean(false)
 
         try {
@@ -35,9 +27,6 @@ internal object InstallReferrerManager {
                 override fun onInstallReferrerSetupFinished(responseCode: Int) {
                     if (!delivered.compareAndSet(false, true)) return
 
-                    // Resolve first, deliver afterwards. Invoking the callback inside the try
-                    // meant any downstream failure fell into catch and delivered a *second*
-                    // callback claiming the install was organic.
                     var result: AttributionResult? = null
                     var failure: String? = null
 
@@ -61,8 +50,6 @@ internal object InstallReferrerManager {
                 }
 
                 override fun onInstallReferrerServiceDisconnected() {
-                    // Without this the callback would never fire when the service drops before
-                    // setup completes, and the install would be silently lost.
                     if (delivered.compareAndSet(false, true)) {
                         onUnavailable("service disconnected before setup finished")
                     }

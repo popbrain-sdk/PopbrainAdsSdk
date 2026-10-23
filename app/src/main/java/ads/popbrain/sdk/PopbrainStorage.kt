@@ -3,15 +3,6 @@ package ads.popbrain.sdk
 import android.content.Context
 import android.content.SharedPreferences
 
-/**
- * Durable state for the SDK.
- *
- * Two independent flags drive the install pipeline:
- *  - [referrerProcessed] — the Play referrer has been read and parsed once. Stops the SDK from
- *    re-binding to the Play Store service on every launch.
- *  - [installReported] — the install reached Popbrain successfully. Only set on a 2xx response,
- *    so an install that happens offline is retried on the next launch instead of being lost.
- */
 internal object PopbrainStorage {
 
     private const val PREFS_NAME = "popbrain_sdk_prefs"
@@ -61,7 +52,6 @@ internal object PopbrainStorage {
             prefs?.edit()?.putBoolean(KEY_INSTALL_REPORTED, value)?.apply()
         }
 
-    /** Bounds the cross-launch retry loop for an install that keeps failing. */
     var installAttempts: Int
         get() = prefs?.getInt(KEY_INSTALL_ATTEMPTS, 0) ?: 0
         set(value) {

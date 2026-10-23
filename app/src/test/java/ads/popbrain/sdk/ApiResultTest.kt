@@ -7,10 +7,6 @@ import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 
-/**
- * The retry decision drives whether an install is re-sent on the next launch, so the
- * classification is worth pinning down.
- */
 class ApiResultTest {
 
     @Test

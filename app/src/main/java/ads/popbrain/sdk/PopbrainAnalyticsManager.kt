@@ -8,27 +8,19 @@ object PopbrainAnalyticsManager {
     private const val MAX_PENDING_EVENTS = 100
     private const val S2S_PATH = "api/v1/pixel/s2s"
 
-    /** Retries for a transient event failure, with backoff. Permanent failures never retry. */
     private const val MAX_EVENT_RETRIES = 2
     private val RETRY_DELAYS_SECONDS = longArrayOf(2, 8)
 
-    /** Reserved payload keys that caller-supplied params must never overwrite. */
     private val RESERVED_KEYS = setOf("clickId", "advertiserId", "eventName")
 
     private val pending = ArrayDeque<Pair<String, Map<String, Any>?>>()
 
-    /**
-     * Explicit initialisation, kept for integrators who already know their ids. The SDK also
-     * resolves both from the install referrer automatically, so calling this is optional.
-     */
     @JvmStatic
     @JvmOverloads
     fun initAnalytics(clickId: String, advertiserId: String? = null) {
-        // A blank clickId would still satisfy the null check in sendEvent, so every later
-        // event would ship with an empty attribution key. Reject it here instead.
         val id = clickId.trim()
-        if (id.isEmpty()) {
-            PopbrainLogger.e("clickId is required, ignoring initAnalytics call")
+        if (!PopbrainServerRules.isValidClickId(id)) {
+            PopbrainLogger.e("clickId must be a 24 character Popbrain click id, ignoring initAnalytics call")
             return
         }
 
@@ -37,7 +29,6 @@ object PopbrainAnalyticsManager {
         flushPending()
     }
 
-    /** Called once the referrer has been parsed, to release any events queued before that. */
     internal fun onAttributionResolved() {
         flushPending()
     }
@@ -45,18 +36,16 @@ object PopbrainAnalyticsManager {
     @JvmStatic
     @JvmOverloads
     fun sendEvent(eventName: String, extraParams: Map<String, Any>? = null) {
-        // eventName is mandatory. Dropped here rather than queued/sent, so a blank name can
-        // never reach the server and create an unattributable event row.
         val name = eventName.trim()
-        if (name.isEmpty()) {
-            PopbrainLogger.e("Event name is required, dropping event")
+        if (!PopbrainServerRules.isValidEventName(name)) {
+            PopbrainLogger.e(
+                "Event name '$name' must be 2-40 letters, numbers or underscores, dropping event"
+            )
             return
         }
 
-        val clickId = PopbrainStorage.clickId?.takeIf(String::isNotEmpty)
+        val clickId = PopbrainStorage.clickId?.takeIf(PopbrainServerRules::isValidClickId)
         if (clickId == null) {
-            // The referrer lookup is asynchronous, so an event fired at app start can arrive
-            // before the clickId exists. Queue it rather than dropping it on the floor.
             queue(name, extraParams)
             return
         }
@@ -75,7 +64,7 @@ object PopbrainAnalyticsManager {
     }
 
     private fun flushPending() {
-        val clickId = PopbrainStorage.clickId?.takeIf(String::isNotEmpty) ?: return
+        val clickId = PopbrainStorage.clickId?.takeIf(PopbrainServerRules::isValidClickId) ?: return
         val advertiserId = PopbrainStorage.advertiserId
 
         val drained = synchronized(pending) {
@@ -116,23 +105,26 @@ object PopbrainAnalyticsManager {
         }
     }
 
-    private fun buildBody(
+    internal fun buildBody(
         eventName: String,
         extraParams: Map<String, Any>?,
         clickId: String,
         advertiserId: String?
     ): String {
         val json = JSONObject()
+        val sendAdvertiserId = advertiserId?.takeIf(PopbrainServerRules::isValidString)
+        val maxExtraParams = PopbrainServerRules.MAX_KEYS - if (sendAdvertiserId != null) 3 else 2
 
-        // Caller params go in first, then the reserved identity fields overwrite them, so a
-        // custom "clickId" key can never change which click an event is attributed to.
         extraParams?.forEach { (key, value) ->
             when {
                 key in RESERVED_KEYS ->
                     PopbrainLogger.e("Ignoring reserved param '$key' in event '$eventName'")
-                key.isBlank() ->
-                    PopbrainLogger.e("Ignoring blank param key in event '$eventName'")
-                // org.json rejects NaN/Infinity — skip the one param, keep the event.
+                !PopbrainServerRules.isValidKey(key) ->
+                    PopbrainLogger.e("Ignoring param with blank or too long key in event '$eventName'")
+                !isAcceptedValue(key, value) ->
+                    PopbrainLogger.e("Ignoring param '$key' with unsupported value in event '$eventName'")
+                json.length() >= maxExtraParams ->
+                    PopbrainLogger.e("Too many params in event '$eventName', ignoring '$key'")
                 else -> runCatching { json.put(key, value) }.onFailure {
                     PopbrainLogger.e("Ignoring unserialisable param '$key' in event '$eventName'")
                 }
@@ -140,9 +132,32 @@ object PopbrainAnalyticsManager {
         }
 
         json.put("clickId", clickId)
-        advertiserId?.let { json.put("advertiserId", it) }
+        sendAdvertiserId?.let { json.put("advertiserId", it) }
         json.put("eventName", eventName)
 
         return json.toString()
+    }
+
+    private fun isAcceptedValue(key: String, value: Any?): Boolean = when (key) {
+        "value" -> eventValue(value)?.let {
+            it >= PopbrainServerRules.MIN_EVENT_VALUE && it <= PopbrainServerRules.MAX_EVENT_VALUE
+        } ?: false
+        "currency" -> value is String && PopbrainServerRules.isValidCurrency(value)
+        "userId" -> value is String && value.trim().length in
+            PopbrainServerRules.MIN_USER_ID_LENGTH..PopbrainServerRules.MAX_USER_ID_LENGTH
+        else -> when (value) {
+            is Boolean -> true
+            is Double -> value.isFinite()
+            is Float -> value.isFinite()
+            is Number -> true
+            is String -> PopbrainServerRules.isValidString(value)
+            else -> false
+        }
+    }
+
+    private fun eventValue(value: Any?): Double? = when (value) {
+        is Number -> value.toDouble().takeIf(Double::isFinite)
+        is String -> value.trim().toDoubleOrNull()?.takeIf(Double::isFinite)
+        else -> null
     }
 }

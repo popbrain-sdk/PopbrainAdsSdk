@@ -2,23 +2,33 @@ package ads.popbrain.sdk
 
 internal object ConversionApi {
 
-    /** `{base}/api/v1/analytics/install/add?clickId={clickId}&<rest of the referrer>` */
     private const val INSTALL_PATH = "api/v1/analytics/install/add"
 
-    /**
-     * Forwards the whole parsed referrer, not just the clickId — the server receives every
-     * field the Play referrer carried (utm_source, utm_campaign, gclid, …) and decides what
-     * to keep. Each key and value is percent-encoded by [PopbrainApiClient].
-     */
     fun reportInstall(
         params: Map<String, String>,
-        clickId: String?,
+        clickId: String,
         onResult: (ApiResult) -> Unit
     ) {
-        val query = LinkedHashMap(params)
-        if (clickId != null && !query.containsKey("clickId")) {
-            query["clickId"] = clickId
+        PopbrainApiClient.get(INSTALL_PATH, buildQuery(params, clickId), "Install report", onResult)
+    }
+
+    internal fun buildQuery(params: Map<String, String>, clickId: String): Map<String, String> {
+        val query = linkedMapOf("clickId" to clickId)
+
+        for ((key, value) in params) {
+            when {
+                PopbrainServerRules.isClickIdAliasKey(key) || value.trim() == clickId -> continue
+                !PopbrainServerRules.isValidKey(key) ->
+                    PopbrainLogger.e("Ignoring referrer param with invalid key '${key.take(20)}'")
+                !PopbrainServerRules.isValidString(value) ->
+                    PopbrainLogger.e("Ignoring referrer param '$key', value too long")
+                query.size >= PopbrainServerRules.MAX_KEYS -> {
+                    PopbrainLogger.e("Referrer has too many params, extra params not sent")
+                    break
+                }
+                else -> query[key] = value
+            }
         }
-        PopbrainApiClient.get(INSTALL_PATH, query, "Install report", onResult)
+        return query
     }
 }
